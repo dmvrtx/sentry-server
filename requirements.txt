@@ -1,0 +1,2 @@
+sentry[postgres]
+sentry[mysql]

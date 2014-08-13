@@ -1,0 +1,14 @@
+/var/log/sentry-server/*.log {
+        daily
+        missingok
+        rotate 52
+        compress
+        delaycompress
+        notifempty
+        create 0666 root adm
+        sharedscripts
+        postrotate
+                service apache2 reload > /dev/null
+                touch /var/lib/sentry-server/project/reload
+        endscript
+}

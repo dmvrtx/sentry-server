@@ -1,0 +1,15 @@
+Source: sentry-server
+Priority: extra
+Maintainer: Valery Sukhomlinov <good-guy@good-guy.me>
+Build-Depends: debhelper (>= 7.0.50~), devscripts, libxslt1-dev, libxml2-dev, python-setuptools, libmysqlclient-dev, wget, postgresql-server-dev-all, python-dev
+Standards-Version: 3.9.1
+Section: python
+Vcs-Browser: https://github.com/getsentry/sentry
+Vcs-Git: https://github.com/getsentry/sentry.git
+
+Package: sentry-server
+Section: python
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}
+Suggests: uwsgi, uwsgi-plugin-python, libapache2-mod-uwsgi, uwsgi-plugin-cgi, rabbitmq-server, python-raven
+Description: Sentry server

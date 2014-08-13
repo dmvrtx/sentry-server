@@ -1,0 +1,33 @@
+#!/bin/bash
+
+case "$1" in
+    configure)
+        if [ -d /var/log/$DPKG_MAINTSCRIPT_PACKAGE/ ]; then
+            echo "log directory already exists"
+        else
+            mkdir -m 0777 -p /var/log/$DPKG_MAINTSCRIPT_PACKAGE
+        fi
+
+        cd /var/lib/$DPKG_MAINTSCRIPT_PACKAGE
+
+        if [ -e /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/project/local_settings.py ]; then
+	    source bin/activate
+            cd /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/bin
+	    sentry --config=../project/sentry.conf.py upgrade
+            deactivate
+            # Restarting uwsgi
+            if [ -e /etc/init.d/uwsgi ]; then
+                echo "reloading uwsgi module"
+                touch /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/project/reload
+            fi
+            if [ -e /etc/init.d/apache2 ]; then
+                echo "reloading apache2 module"
+                service apache2 reload
+            fi
+        fi
+    ;;
+
+    *)
+    # Do nothing
+    ;;
+esac

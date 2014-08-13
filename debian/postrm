@@ -1,0 +1,19 @@
+#!/bin/bash
+case "$1" in
+    upgrade)
+        # Do nothing
+    ;;
+
+    *)
+        # on removal we should clean project directory
+        if [ -d /var/lib/$DPKG_MAINTSCRIPT_PACKAGE ]; then
+	    echo "Do you wish to completely remove project directory ?"
+	    select yn in "Yes" "No"; do
+		    case $yn in
+			Yes ) rm -rf /var/lib/$DPKG_MAINTSCRIPT_PACKAGE; break;;
+			No ) exit;;
+		    esac
+            done
+        fi
+    ;;
+esac
