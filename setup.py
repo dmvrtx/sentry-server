@@ -6,7 +6,7 @@ from distutils.core import setup
 if __name__ == '__main__' and sys.argv[1] == 'test':
     exit()
 
-with open('README.rst') as readme:
+with open('README.md') as readme:
     long_description = readme.read()
 
 setup(
