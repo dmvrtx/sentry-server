@@ -11,3 +11,9 @@ and installs all the requirements. Installation path is
 /var/lib/sentry.
 
 Provided are example configurations for WSGI modules of Apache and nginx.
+
+Creating a package
+------------------
+
+First you should install dh-virtualenv from GitHub repository:
+https://github.com/spotify/dh-virtualenv
