@@ -1,5 +1,5 @@
-sentry-server (7.0.0-DEV) UNRELEASED; urgency=medium
+sentry-server (6.4.4) unstable; urgency=medium
 
   * Initial release. (Closes: #XXXXXX)
 
- -- Valery Sukhomlinov <good-guy@good-guy.me>  Tue, 12 Aug 2014 16:11:03 +0400
+ -- Valery Sukhomlinov <good-guy@good-guy.me>  Wed, 13 Aug 2014 15:19:40 +0400

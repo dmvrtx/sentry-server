@@ -1,9 +1,9 @@
 DESTDIR=/
 BUILDIR=$(CURDIR)/build
 PROJECT=sentry-server
-SENTRY_TMP_PATH=/tmp/sentry_version.py
-SENTRY_SETUP_URL=https://raw.githubusercontent.com/getsentry/sentry/release/setup.py
-VERSION=$(shell wget -N -q -O $(SENTRY_TMP_PATH) $(SENTRY_SETUP_URL) && grep -o -e "version='[-0-9a-zA-Z\.]\+'" $(SENTRY_TMP_PATH) | grep -o '[0-9][-0-9a-zA-Z\.]\+')
+SENTRY_TMP_PATH=/tmp/sentry_version
+SENTRY_SETUP_URL=https://pypi.python.org/pypi/sentry/json
+	VERSION=$(shell wget -N -q -O $(SENTRY_TMP_PATH) $(SENTRY_SETUP_URL) && grep -o -e "\"version\": \"[-0-9a-zA-Z\.]\+\"" $(SENTRY_TMP_PATH) | grep -o '[0-9][-0-9a-zA-Z\.]\+')
 
 all:
 	@echo "make source - Create source package"
@@ -21,7 +21,7 @@ install:
 
 builddeb:
 	make clean
-	@dch --release --package sentry-server -U -v $(VERSION)
+	@dch --package sentry-server -v $(VERSION)
 	make source
 	@sudo mk-build-deps -ri 
 	@dpkg-buildpackage -i -I -uc -us -rfakeroot

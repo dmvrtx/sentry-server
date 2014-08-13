@@ -1,7 +1,7 @@
 Source: sentry-server
 Priority: extra
 Maintainer: Valery Sukhomlinov <good-guy@good-guy.me>
-Build-Depends: debhelper (>= 7.0.50~), devscripts, libxslt1-dev, libxml2-dev, python-setuptools, libmysqlclient-dev, wget, postgresql-server-dev-all, python-dev, dh-virtualenv
+Build-Depends: debhelper (>= 7.0.50~), devscripts, libxslt1-dev, libxml2-dev, python-setuptools, libmysqlclient-dev, wget, postgresql-server-dev-all, python-dev, dh-virtualenv, equivs
 Standards-Version: 3.9.1
 Section: python
 Vcs-Browser: https://github.com/getsentry/sentry
