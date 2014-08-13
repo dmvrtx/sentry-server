@@ -12,7 +12,7 @@ with open('README.rst') as readme:
 setup(
     name='sentry-server',
     version='',
-    author='Valery Sukhomlinov',`
+    author='Valery Sukhomlinov',
     author_email='good-guy@good-guy.me',
     packages=[],
     license='BSD',
