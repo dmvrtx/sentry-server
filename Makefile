@@ -13,7 +13,7 @@ all:
 
 source:
 	@sed -i -e "s/version='[-0-9\.a-zA-Z]\+',/version='$(VERSION)',/" setup.py
-	@tar -czf $(CURDIR)/../$(PROJECT)_$(VERSION).orig.tar.gz project debian docs
+	@tar -czf $(CURDIR)/../$(PROJECT)_$(VERSION).orig.tar.gz debian docs
 	@rm -rf $(BUILDIR)
 
 install:
