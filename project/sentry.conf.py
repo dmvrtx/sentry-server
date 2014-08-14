@@ -4,7 +4,7 @@ sentry.conf.server
 
 These settings act as the default (base) settings for the Sentry-provided web-server
 
-:copyright: (c) 2010-2014 by the Sentry Team, see AUTHORS for more details.
+:copyright: (c) 2010-2013 by the Sentry Team, see AUTHORS for more details.
 :license: BSD, see LICENSE for more details.
 """
 
@@ -19,14 +19,8 @@ import socket
 import sys
 import urlparse
 
-from datetime import timedelta
-
-
-socket.setdefaulttimeout(5)
-
 DEBUG = False
 TEMPLATE_DEBUG = True
-MAINTENANCE = False
 
 ADMINS = ()
 
@@ -114,15 +108,12 @@ TEMPLATE_LOADERS = (
 )
 
 MIDDLEWARE_CLASSES = (
-    'sentry.middleware.maintenance.ServicesUnavailableMiddleware',
-    'sentry.middleware.debug.NoIfModifiedSinceMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'sentry.middleware.sudo.SudoMiddleware',
-    'sentry.middleware.locale.SentryLocaleMiddleware',
-    'sentry.middleware.social_auth.SentrySocialAuthExceptionMiddleware',
+    'sentry.middleware.SentryMiddleware',
+    'sentry.middleware.SentrySocialAuthExceptionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 )
@@ -155,13 +146,11 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.staticfiles',
 
-    'captcha',
     'crispy_forms',
     'djcelery',
     'gunicorn',
     'kombu.transport.django',
     'raven.contrib.django.raven_compat',
-    'rest_framework',
     'sentry',
     'sentry.nodestore',
     'sentry.search',
@@ -172,7 +161,6 @@ INSTALLED_APPS = (
     'social_auth',
     'south',
     'static_compiler',
-    'sudo',
 )
 
 STATIC_ROOT = os.path.realpath(os.path.join(PROJECT_ROOT, 'static'))
@@ -213,7 +201,6 @@ AUTHENTICATION_BACKENDS = (
 SOCIAL_AUTH_USER_MODEL = AUTH_USER_MODEL = 'sentry.User'
 
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
-SESSION_COOKIE_NAME = "sentrysid"
 
 TWITTER_CONSUMER_KEY = ''
 TWITTER_CONSUMER_SECRET = ''
@@ -235,7 +222,6 @@ BITBUCKET_CONSUMER_KEY = ''
 BITBUCKET_CONSUMER_SECRET = ''
 
 SOCIAL_AUTH_PIPELINE = (
-    'social_auth.backends.pipeline.user.get_username',
     'social_auth.backends.pipeline.social.social_auth_user',
     'social_auth.backends.pipeline.associate.associate_by_email',
     'social_auth.backends.pipeline.misc.save_status_to_session',
@@ -266,7 +252,7 @@ SOCIAL_AUTH_DEFAULT_USERNAME = lambda: random.choice(['Darth Vader', 'Obi-Wan Ke
 SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email']
 
 # Queue configuration
-from kombu import Exchange, Queue
+from kombu import Queue
 
 BROKER_URL = "django://"
 
@@ -281,70 +267,19 @@ CELERY_DEFAULT_EXCHANGE = "default"
 CELERY_DEFAULT_EXCHANGE_TYPE = "direct"
 CELERY_DEFAULT_ROUTING_KEY = "default"
 CELERY_CREATE_MISSING_QUEUES = True
-CELERY_IMPORTS = (
-    'sentry.tasks.check_alerts',
-    'sentry.tasks.check_update',
-    'sentry.tasks.cleanup',
-    'sentry.tasks.deletion',
-    'sentry.tasks.email',
-    'sentry.tasks.fetch_source',
-    'sentry.tasks.index',
-    'sentry.tasks.merge',
-    'sentry.tasks.store',
-    'sentry.tasks.post_process',
-    'sentry.tasks.process_buffer',
-)
-CELERY_QUEUES = [
+CELERY_QUEUES = (
     Queue('default', routing_key='default'),
+    Queue('celery', routing_key='celery'),
     Queue('alerts', routing_key='alerts'),
     Queue('cleanup', routing_key='cleanup'),
     Queue('sourcemaps', routing_key='sourcemaps'),
     Queue('search', routing_key='search'),
+    Queue('counters', routing_key='counters'),
     Queue('events', routing_key='events'),
+    Queue('triggers', routing_key='triggers'),
     Queue('update', routing_key='update'),
     Queue('email', routing_key='email'),
-]
-
-CELERY_ROUTES = ('sentry.queue.routers.SplitQueueRouter',)
-
-
-def create_partitioned_queues(name):
-    exchange = Exchange(name, type='direct')
-    for num in range(1):
-        CELERY_QUEUES.append(Queue(
-            '{0}-{1}'.format(name, num),
-            exchange=exchange,
-        ))
-
-create_partitioned_queues('counters')
-create_partitioned_queues('triggers')
-
-
-CELERYBEAT_SCHEDULE = {
-    'check-alerts': {
-        'task': 'sentry.tasks.check_alerts',
-        'schedule': timedelta(minutes=1),
-        'options': {
-            'expires': 60,
-            'queue': 'alerts',
-        }
-    },
-    'check-version': {
-        'task': 'sentry.tasks.check_update',
-        'schedule': timedelta(hours=1),
-        'options': {
-            'expires': 3600,
-        },
-    },
-    'flush-buffers': {
-        'task': 'sentry.tasks.process_buffer.process_pending',
-        'schedule': timedelta(seconds=10),
-        'options': {
-            'expires': 10,
-            'queue': 'counters-0',
-        }
-    },
-}
+)
 
 # Disable South in tests as it is sending incorrect create signals
 SOUTH_TESTS_MIGRATE = True
@@ -354,10 +289,10 @@ LOGGING = {
     'disable_existing_loggers': True,
     'handlers': {
         'console': {
+            'level': 'WARNING',
             'class': 'logging.StreamHandler'
         },
         'sentry': {
-            'level': 'ERROR',
             'class': 'raven.contrib.django.handlers.SentryHandler',
         }
     },
@@ -366,11 +301,13 @@ LOGGING = {
             'format': '%(name)s %(levelname)s %(project_slug)s/%(team_slug)s %(message)s'
         }
     },
-    'root': {
-        'level': 'WARNING',
-        'handlers': ['console', 'sentry'],
-    },
     'loggers': {
+        '()': {
+            'handlers': ['console', 'sentry'],
+        },
+        'root': {
+            'handlers': ['console', 'sentry'],
+        },
         'sentry': {
             'level': 'ERROR',
             'handlers': ['console', 'sentry'],
@@ -384,16 +321,9 @@ LOGGING = {
             'handlers': ['console'],
             'propagate': False,
         },
-        'static_compiler': {
-            'level': 'INFO',
-        },
         'django.request': {
             'level': 'ERROR',
             'handlers': ['console'],
-            'propagate': False,
-        },
-        'toronado.cssutils': {
-            'level': 'ERROR',
             'propagate': False,
         },
     }
@@ -472,31 +402,16 @@ SENTRY_STATIC_BUNDLES = {
         },
     },
     "postcompilers": {
-        "*.js": ["node_modules/.bin/uglifyjs {input} --source-map-root={relroot}/ --source-map-url={name}.map{ext} --source-map={relpath}/{name}.map{ext} -o {output}"],
+        "*.js": ["node_modules/uglify-js/bin/uglifyjs {input} --source-map-root={relroot}/ --source-map-url={name}.map{ext} --source-map={relpath}/{name}.map{ext} -o {output}"],
     },
     "preprocessors": {
-        "*.less": ["node_modules/.bin/lessc {input} {output}"],
+        "*.less": ["node_modules/less/bin/lessc {input} {output}"],
     },
 }
 
 # We only define static bundles if NPM has been setup
 if os.path.exists(NPM_ROOT):
     STATIC_BUNDLES = SENTRY_STATIC_BUNDLES
-
-# django-rest-framework
-
-REST_FRAMEWORK = {
-    'TEST_REQUEST_DEFAULT_FORMAT': 'json',
-}
-
-# django-recaptcha
-
-RECAPTCHA_PUBLIC_KEY = None
-RECAPTCHA_PRIVATE_KEY = None
-
-# django-statsd
-
-STATSD_CLIENT = 'django_statsd.clients.null'
 
 # Sentry and Raven configuration
 
@@ -506,10 +421,6 @@ SENTRY_CACHE_BACKEND = 'default'
 
 SENTRY_FILTERS = (
     'sentry.filters.StatusFilter',
-)
-
-SENTRY_IGNORE_EXCEPTIONS = (
-    'OperationalError',
 )
 
 SENTRY_KEY = None
@@ -565,23 +476,23 @@ SENTRY_SMTP_HOSTNAME = 'localhost'
 SENTRY_SMTP_HOST = 'localhost'
 SENTRY_SMTP_PORT = 1025
 
-SENTRY_INTERFACES = {
-    'exception': 'sentry.interfaces.exception.Exception',
-    'logentry': 'sentry.interfaces.message.Message',
-    'request': 'sentry.interfaces.http.Http',
-    'stacktrace': 'sentry.interfaces.stacktrace.Stacktrace',
-    'template': 'sentry.interfaces.template.Template',
-    'query': 'sentry.interfaces.query.Query',
-    'user': 'sentry.interfaces.user.User',
+SENTRY_ALLOWED_INTERFACES = set([
+    'sentry.interfaces.Exception',
+    'sentry.interfaces.Message',
+    'sentry.interfaces.Stacktrace',
+    'sentry.interfaces.Template',
+    'sentry.interfaces.Query',
+    'sentry.interfaces.Http',
+    'sentry.interfaces.User',
+])
 
-    'sentry.interfaces.Exception': 'sentry.interfaces.exception.Exception',
-    'sentry.interfaces.Message': 'sentry.interfaces.message.Message',
-    'sentry.interfaces.Stacktrace': 'sentry.interfaces.stacktrace.Stacktrace',
-    'sentry.interfaces.Template': 'sentry.interfaces.template.Template',
-    'sentry.interfaces.Query': 'sentry.interfaces.query.Query',
-    'sentry.interfaces.Http': 'sentry.interfaces.http.Http',
-    'sentry.interfaces.User': 'sentry.interfaces.user.User',
-}
+# Should users without 'sentry.add_project' permissions be allowed
+# to create new projects
+SENTRY_ALLOW_PROJECT_CREATION = False
+
+# Should users without 'sentry.add_team' permissions be allowed
+# to create new projects
+SENTRY_ALLOW_TEAM_CREATION = False
 
 # Should users without superuser permissions be allowed to
 # make projects public
@@ -591,6 +502,10 @@ SENTRY_ALLOW_PUBLIC_PROJECTS = True
 # accounts can only be created when someone is invited or added
 # manually.
 SENTRY_ALLOW_REGISTRATION = True
+
+# Enable trend results. These can be expensive and are calculated in real-time.
+# When disabled they will be replaced w/ a default priority sort.
+SENTRY_USE_TRENDING = True
 
 # Default to not sending the Access-Control-Allow-Origin header on api/store
 SENTRY_ALLOW_ORIGIN = None
@@ -605,17 +520,9 @@ SENTRY_REDIS_OPTIONS = {}
 SENTRY_BUFFER = 'sentry.buffer.Buffer'
 SENTRY_BUFFER_OPTIONS = {}
 
-# Cache backend
-SENTRY_CACHE = 'sentry.cache.django.DjangoCache'
-SENTRY_CACHE_OPTIONS = {}
-
 # Quota backend
 SENTRY_QUOTAS = 'sentry.quotas.Quota'
 SENTRY_QUOTA_OPTIONS = {}
-
-# Rate limiting backend
-SENTRY_RATELIMITER = 'sentry.ratelimits.base.RateLimiter'
-SENTRY_RATELIMITER_OPTIONS = {}
 
 # The default value for project-level quotas
 SENTRY_DEFAULT_MAX_EVENTS_PER_MINUTE = '90%'
@@ -635,11 +542,11 @@ SENTRY_SEARCH_OPTIONS = {}
 #     'timeout': 5,
 # }
 
-# Time-series storage backend
-SENTRY_TSDB = 'sentry.tsdb.dummy.DummyTSDB'
-SENTRY_TSDB_OPTIONS = {}
+# Enable search within the frontend
+SENTRY_USE_SEARCH = True
+# SENTRY_INDEX_SEARCH = SENTRY_USE_SEARCH
 
-SENTRY_RAVEN_JS_URL = 'cdn.ravenjs.com/1.1.15/jquery,native/raven.min.js'
+SENTRY_RAVEN_JS_URL = 'cdn.ravenjs.com/1.1.2/jquery,native/raven.min.js'
 
 # URI Prefixes for generating DSN URLs
 # (Defaults to URL_PREFIX by default)
@@ -658,38 +565,16 @@ SENTRY_MAX_VARIABLE_SIZE = 512
 # characters
 SENTRY_MAX_EXTRA_VARIABLE_SIZE = 4096
 
-# For various attributes we don't limit the entire attribute on size, but the
+# For various attributes we dont limit the entire attribute on size, but the
 # individual item. In those cases we also want to limit the maximum number of
 # keys
 SENTRY_MAX_DICTIONARY_ITEMS = 50
 
-SENTRY_MAX_MESSAGE_LENGTH = 1024 * 2
-SENTRY_MAX_STACKTRACE_FRAMES = 25
+SENTRY_MAX_MESSAGE_LENGTH = 1024 * 10
+SENTRY_MAX_STACKTRACE_FRAMES = 50
 
 # Gravatar service base url
 SENTRY_GRAVATAR_BASE_URL = 'https://secure.gravatar.com'
-
-# Timeout (in seconds) for fetching remote source files (e.g. JS)
-SENTRY_SOURCE_FETCH_TIMEOUT = 5
-
-# http://en.wikipedia.org/wiki/Reserved_IP_addresses
-SENTRY_DISALLOWED_IPS = (
-    '0.0.0.0/8',
-    '10.0.0.0/8',
-    '100.64.0.0/10',
-    '127.0.0.0/8',
-    '169.254.0.0/16',
-    '172.16.0.0/12',
-    '192.0.0.0/29',
-    '192.0.2.0/24',
-    '192.88.99.0/24',
-    '192.168.0.0/16',
-    '198.18.0.0/15',
-    '198.51.100.0/24',
-    '224.0.0.0/4',
-    '240.0.0.0/4',
-    '255.255.255.255/32',
-)
 
 # Configure celery
 import djcelery
