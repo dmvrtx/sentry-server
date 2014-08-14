@@ -10,18 +10,18 @@ case "$1" in
 
         cd /var/lib/$DPKG_MAINTSCRIPT_PACKAGE
 
-        if [ -e /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/project/server.conf.py ]; then
+        if [ -e /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/sentry.conf.py ]; then
 		echo "Do you wish to run upgrade procedures (assuming sentry.conf.py has correct settings)?"
 		select yn in "Yes" "No"; do
 			case $yn in
-				Yes ) source bin/activate; cd /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/bin; sentry --config=../project/sentry.conf.py upgrade; deactivate; break;;
+				Yes ) source bin/activate; cd /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/bin; sentry --config=../sentry.conf.py upgrade; deactivate; break;;
 				No ) exit;;
 			esac
 		done
             # Restarting uwsgi
             if [ -e /etc/init.d/uwsgi ]; then
                 echo "reloading uwsgi module"
-                touch /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/project/reload
+                touch /var/lib/$DPKG_MAINTSCRIPT_PACKAGE/reload
             fi
             if [ -e /etc/init.d/apache2 ]; then
                 echo "reloading apache2 module"
@@ -29,7 +29,7 @@ case "$1" in
             fi
 	else
 		source bin/activate
-		./bin/sentry init project/server.conf.py
+		./bin/sentry init sentry.conf.py
 		deactivate
         fi
     ;;
